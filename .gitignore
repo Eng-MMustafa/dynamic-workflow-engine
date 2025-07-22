@@ -34,8 +34,6 @@ temp/
 docker-compose.override.yml
 *.local.yml
 
-# Postman
-*.postman_collection.json
 
 # Bash / batch files (optional, keep if not needed)
 *.sh
