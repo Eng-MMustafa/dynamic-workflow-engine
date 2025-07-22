@@ -14,7 +14,6 @@ log/
 
 # Env files
 .env
-.env.*
 
 # OS-specific
 .DS_Store
@@ -25,7 +24,6 @@ Thumbs.db
 .idea/
 
 # Development tools
-.devcontainer/
 coverage/
 dist/
 build/
