@@ -1,0 +1,45 @@
+{
+  "name": "NestJS BPMN Workflow Engine",
+  "dockerComposeFile": "../docker-compose.devcontainer.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+
+ "features": {
+  "ghcr.io/devcontainers/features/node:1": {
+    "version": "24"
+  },
+  "ghcr.io/devcontainers/features/common-utils:2": {
+    "installZsh": true,
+    "username": "node",
+    "upgradePackages": true
+  }
+},
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next"
+      ]
+    }
+  },
+
+  "forwardPorts": [3000, 5432, 6379],
+  "postCreateCommand": "cd nestjs-app && npm install --legacy-peer-deps && npm audit fix || true",
+
+  "postStartCommand": "cd nestjs-app && npm run start:dev",
+
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+  ],
+
+  "containerUser": "node",
+
+  "remoteEnv": {
+    "NODE_ENV": "development",
+    "PORT": "3000",
+    "CAMUNDA_BASE_URL": "http://camunda:8080/engine-rest"
+  }
+}

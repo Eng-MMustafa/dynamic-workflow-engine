@@ -1,0 +1,47 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+
+# Logs
+logs
+*.log
+*.log.*
+log/
+
+# Env files
+.env
+.env.*
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# IDEs and editors
+.vscode/
+.idea/
+
+# Development tools
+.devcontainer/
+coverage/
+dist/
+build/
+tmp/
+temp/
+
+# Docker
+docker-compose.override.yml
+*.local.yml
+
+# Postman
+*.postman_collection.json
+
+# Bash / batch files (optional, keep if not needed)
+*.sh
+*.bat
+
+# NestJS specific (optional)
+nestjs-debug.log

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.0.0">
+  <bpmn:process id="leave-request-process" name="Leave Request Process" isExecutable="true">
+    
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_1" name="Leave Request Submitted">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <!-- User Task: Manager Review -->
+    <bpmn:userTask id="manager-review" name="Manager Review" camunda:assignee="${managerUserId}">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    
+    <!-- Gateway: Decision -->
+    <bpmn:exclusiveGateway id="Gateway_1" name="Approved?">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    
+    <!-- Service Task: Notify HR (Approved) -->
+    <bpmn:serviceTask id="notify-hr-approved" name="Notify HR - Approved" camunda:type="external" camunda:topic="notify-hr">
+      <bpmn:incoming>Flow_approved</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- Service Task: Notify Employee (Rejected) -->
+    <bpmn:serviceTask id="notify-employee-rejected" name="Notify Employee - Rejected" camunda:type="external" camunda:topic="notify-employee">
+      <bpmn:incoming>Flow_rejected</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- End Events -->
+    <bpmn:endEvent id="EndEvent_approved" name="Leave Approved">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:endEvent id="EndEvent_rejected" name="Leave Rejected">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="manager-review" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="manager-review" targetRef="Gateway_1" />
+    <bpmn:sequenceFlow id="Flow_approved" name="Yes" sourceRef="Gateway_1" targetRef="notify-hr-approved">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_rejected" name="No" sourceRef="Gateway_1" targetRef="notify-employee-rejected">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="notify-hr-approved" targetRef="EndEvent_approved" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="notify-employee-rejected" targetRef="EndEvent_rejected" />
+    
+  </bpmn:process>
+</bpmn:definitions>

@@ -1,0 +1,23 @@
+{
+  "name": "dynamic-workflow-engine",
+  "version": "1.0.0",
+  "description": "Dynamic Workflow Engine with NestJS and Camunda",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cd nestjs-app && npm run start:dev",
+    "build": "cd nestjs-app && npm run build",
+    "start": "cd nestjs-app && npm run start",
+    "install:app": "cd nestjs-app && npm install"
+  },
+  "keywords": [
+    "workflow",
+    "nestjs",
+    "camunda",
+    "bpmn"
+  ],
+  "author": "Mohammed",
+  "license": "MIT",
+  "dependencies": {
+    "@nestjs/config": "^4.0.2"
+  }
+}

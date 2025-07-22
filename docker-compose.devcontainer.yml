@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    user: node
+    container_name: devcontainer
+    volumes:
+      - ..:/workspace:cached  
+    working_dir: /workspace  
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: nestjs
+      DB_PASSWORD: nestjs123
+      DB_NAME: workflow_app
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cap_add:
+      - ALL
+    privileged: true
+    command: /bin/sh -c "npm install && npm run start:dev || tail -f /dev/null"
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: workflow_app
+      POSTGRES_USER: nestjs
+      POSTGRES_PASSWORD: nestjs123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nestjs -d workflow_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+      image: dpage/pgadmin4
+      container_name: pgadmin
+      environment:
+        PGADMIN_DEFAULT_EMAIL: admin@admin.com
+        PGADMIN_DEFAULT_PASSWORD: admin
+      ports:
+        - "8080:80"
+      depends_on:
+        - postgres
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+
+volumes:
+  postgres_data:

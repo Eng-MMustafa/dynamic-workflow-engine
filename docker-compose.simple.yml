@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # NestJS Application
+  app:
+    build:
+      context: ./nestjs-app
+      dockerfile: Dockerfile
+    container_name: workflow-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=nestjs
+      - DB_PASSWORD=nestjs123
+      - DB_DATABASE=workflow_app
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-secret-key
+      - JWT_EXPIRES_IN=24h
+      - CAMUNDA_BASE_URL=http://localhost:8080/engine-rest
+    volumes:
+      - ./nestjs-app:/usr/src/app
+      - /usr/src/app/node_modules
+    working_dir: /usr/src/app
+    user: "node"
+    command: ["npm", "run", "start:dev"]
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: workflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: workflow_app
+      POSTGRES_USER: nestjs
+      POSTGRES_PASSWORD: nestjs123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nestjs -d workflow_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and queues
+  redis:
+    image: redis:7-alpine
+    container_name: workflow-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

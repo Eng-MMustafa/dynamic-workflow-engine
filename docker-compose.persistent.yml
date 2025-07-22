@@ -1,0 +1,172 @@
+services:
+  # PostgreSQL Database for Camunda
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-db
+    restart: always
+    environment:
+      - POSTGRES_DB=camunda
+      - POSTGRES_USER=camunda
+      - POSTGRES_PASSWORD=camunda
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts/init-camunda.sql:/docker-entrypoint-initdb.d/01-init-camunda.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - workflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U camunda -d camunda"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # PostgreSQL Database for NestJS
+  nestjs-db:
+    image: postgres:15-alpine
+    container_name: nestjs-postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=workflow_app
+      - POSTGRES_USER=nestjs
+      - POSTGRES_PASSWORD=nestjs123
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - nestjs_postgres_data:/var/lib/postgresql/data
+      - ./init-scripts/init-nestjs.sql:/docker-entrypoint-initdb.d/01-init-nestjs.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - workflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nestjs -d workflow_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Redis for Caching and Queues
+  redis:
+    image: redis:7-alpine
+    container_name: redis-cache
+    restart: always
+    command: redis-server --appendonly yes --requirepass redis123
+    volumes:
+      - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    networks:
+      - workflow-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Camunda BPM Platform
+  camunda:
+    image: camunda/camunda-bpm-platform:latest
+    container_name: camunda-engine
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_DRIVER=org.postgresql.Driver
+      - DB_URL=jdbc:postgresql://postgres:5432/camunda
+      - DB_USERNAME=camunda
+      - DB_PASSWORD=camunda
+      - CAMUNDA_BPM_ADMIN_USER_ID=admin
+      - CAMUNDA_BPM_ADMIN_USER_PASSWORD=admin
+      - CAMUNDA_BPM_ADMIN_USER_FIRST_NAME=Admin
+      - CAMUNDA_BPM_ADMIN_USER_LAST_NAME=User
+      - CAMUNDA_BPM_ADMIN_USER_EMAIL=admin@example.com
+      - JAVA_OPTS=-Xmx1024m -XX:MaxMetaspaceSize=256m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./bpmn-models:/camunda/webapps/engine-rest/WEB-INF/classes/processes
+      - camunda_data:/camunda/webapps
+    networks:
+      - workflow-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/engine-rest/engine"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 60s
+
+  # NestJS Application
+  nestjs-app:
+    build:
+      context: ./nestjs-app
+      dockerfile: Dockerfile
+    container_name: nestjs-workflow-engine
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - APP_NAME=Dynamic Workflow Engine
+      - DB_HOST=nestjs-db
+      - DB_PORT=5432
+      - DB_USERNAME=nestjs
+      - DB_PASSWORD=nestjs123
+      - DB_DATABASE=workflow_app
+      - DB_SYNCHRONIZE=true
+      - DB_LOGGING=false
+      - CAMUNDA_BASE_URL=http://camunda:8080/engine-rest
+      - CAMUNDA_ENGINE_NAME=default
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis123
+      - JWT_SECRET=dynamic-workflow-engine-super-secret-jwt-key-2024
+      - JWT_EXPIRES_IN=24h
+      - EXTERNAL_TASK_BASE_URL=http://camunda:8080/engine-rest
+      - EXTERNAL_TASK_WORKER_ID=nestjs-worker
+      - EXTERNAL_TASK_MAX_TASKS=10
+      - EXTERNAL_TASK_INTERVAL=5000
+      - EXTERNAL_TASK_LOCK_DURATION=300000
+      - NOTIFICATION_ENABLED=true
+      - LOG_LEVEL=info
+    depends_on:
+      nestjs-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      camunda:
+        condition: service_healthy
+    volumes:
+      - nestjs_logs:/app/logs
+    networks:
+      - workflow-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 90s
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  nestjs_postgres_data:
+    driver: local
+  camunda_data:
+    driver: local
+  nestjs_logs:
+    driver: local
+
+networks:
+  workflow-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
