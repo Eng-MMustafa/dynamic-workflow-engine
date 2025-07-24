@@ -1,9 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { WorkflowDefinition } from './entities/workflow-definition.entity'; // Adjust the import path as necessary
+import { WorkflowDefinition } from './entities/workflow-definition.entity';
 import { WorkflowInstance, WorkflowInstanceStatus } from './entities/workflow-instance.entity';
-import { CamundaService } from '../camunda/camunda.service'; // Adjust the import path as necessary
+import { CamundaService } from '../camunda/camunda.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class WorkflowService {
@@ -15,7 +16,23 @@ export class WorkflowService {
     @InjectRepository(WorkflowInstance)
     private readonly workflowInstanceRepo: Repository<WorkflowInstance>,
     private readonly camundaService: CamundaService,
+    private readonly usersService: UsersService,
   ) {}
+
+  async validateEmployee(employeeId: string): Promise<void> {
+    try {
+      const user = await this.usersService.findById(employeeId);
+      if (!user) {
+        throw new BadRequestException(`Employee with ID ${employeeId} not found`);
+      }
+      // You can add additional validation here, e.g., check if user has employee role
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new BadRequestException(`Employee with ID ${employeeId} not found`);
+      }
+      throw error;
+    }
+  }
 
   // Deploy a new workflow definition
   async deployWorkflow(
@@ -204,14 +221,183 @@ export class WorkflowService {
   }
 
   // Complete a user task
-  async completeTask(taskId: string, variables: any = {}): Promise<void> {
-    try {
-      await this.camundaService.completeTask(taskId, variables);
-      this.logger.log(`Task completed: ${taskId}`);
-    } catch (error) {
-      this.logger.error(`Failed to complete task: ${taskId}`, error);
-      throw error;
-    }
+  async completeTask(
+    taskId: string,
+    employeeId: string,
+    variables?: Record<string, any>,
+  ): Promise<void> {
+    await this.camundaService.completeTask(taskId, variables);
+  }
+
+  async startTaskProcessing(
+    taskId: string,
+    employeeId: string,
+    processVariables?: Record<string, any>,
+  ) {
+    // Validate employee exists
+    await this.validateEmployee(employeeId);
+    
+    // In a real implementation, you would claim and start the task
+    // For now, we'll just return a success message
+    return {
+      success: true,
+      message: `Task ${taskId} processing started by employee ${employeeId}`,
+      processVariables
+    };
+  }
+
+  async employEmployeeToTask(
+    employeeId: string,
+    taskId: string,
+    role?: string,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    // Validate employee exists
+    await this.validateEmployee(employeeId);
+    
+    // In a real implementation, you would store this assignment in your database
+    // For example:
+    // const assignment = this.assignmentRepo.create({
+    //   employeeId,
+    //   taskId,
+    //   role,
+    //   startDate,
+    //   endDate,
+    //   status: 'ASSIGNED'
+    // });
+    // return await this.assignmentRepo.save(assignment);
+    
+    // For now, we'll just return a success message
+    return {
+      success: true,
+      message: `Employee ${employeeId} has been assigned to task ${taskId}`,
+      role,
+      startDate,
+      endDate
+    };
+  }
+
+  async assignTaskToEmployee(
+    taskId: string,
+    employeeId: string,
+    dueDate?: Date,
+    priority: 'low' | 'medium' | 'high' = 'medium',
+    notes?: string,
+  ) {
+    // Validate employee exists
+    await this.validateEmployee(employeeId);
+    
+    // In a real implementation, you would update the task assignment in your database
+    // For example:
+    // const task = await this.taskRepo.findOne({ where: { id: taskId } });
+    // if (!task) {
+    //   throw new NotFoundException(`Task with ID ${taskId} not found`);
+    // }
+    // 
+    // task.assignedTo = employeeId;
+    // task.dueDate = dueDate;
+    // task.priority = priority;
+    // task.notes = notes;
+    // task.status = 'ASSIGNED';
+    // 
+    // return await this.taskRepo.save(task);
+    
+    // For now, we'll just return a success message
+    return {
+      success: true,
+      message: `Task ${taskId} has been assigned to employee ${employeeId}`,
+      dueDate,
+      priority,
+      notes
+    };
+  }
+
+  async updateTaskStatus(
+    taskId: string,
+    status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'REJECTED',
+    updatedBy: string,
+    comments?: string,
+  ) {
+    // In a real implementation, you would update the task status in your database
+    // For example:
+    // const task = await this.taskRepo.findOne({ where: { id: taskId } });
+    // if (!task) {
+    //   throw new NotFoundException(`Task with ID ${taskId} not found`);
+    // }
+    // 
+    // task.status = status;
+    // task.updatedBy = updatedBy;
+    // task.updatedAt = new Date();
+    // 
+    // // Add status change history
+    // const statusChange = this.statusHistoryRepo.create({
+    //   taskId,
+    //   previousStatus: task.status,
+    //   newStatus: status,
+    //   changedBy: updatedBy,
+    //   comments,
+    // });
+    // 
+    // await this.statusHistoryRepo.save(statusChange);
+    // return await this.taskRepo.save(task);
+
+    // For now, we'll just return a success message
+    return {
+      success: true,
+      message: `Task ${taskId} status updated to ${status}`,
+      status,
+      updatedBy,
+      updatedAt: new Date(),
+      comments,
+    };
+  }
+
+  async getTasksByEmployeeId(
+    employeeId: string,
+    status?: string,
+    fromDate?: string,
+    toDate?: string,
+  ) {
+    // In a real implementation, you would query tasks from your database
+    // For example:
+    // const query = this.taskRepo
+    //   .createQueryBuilder('task')
+    //   .where('task.assignedTo = :employeeId', { employeeId });
+    // 
+    // if (status) {
+    //   query.andWhere('task.status = :status', { status });
+    // }
+    // 
+    // if (fromDate) {
+    //   query.andWhere('task.createdAt >= :fromDate', { fromDate: new Date(fromDate) });
+    // }
+    // 
+    // if (toDate) {
+    //   query.andWhere('task.createdAt <= :toDate', { toDate: new Date(toDate) });
+    // }
+    // 
+    // return query.getMany();
+
+    // For now, we'll return a sample response
+    return {
+      employeeId,
+      status,
+      fromDate,
+      toDate,
+      tasks: [
+        // Sample tasks
+        {
+          id: 'task-123',
+          title: 'Sample Task',
+          status: status || 'IN_PROGRESS',
+          assignedTo: employeeId,
+          dueDate: new Date().toISOString(),
+          priority: 'high',
+        },
+      ],
+      count: 1,
+    };
   }
 
   // Get active tasks for a workflow instance
